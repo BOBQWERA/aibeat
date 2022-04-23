@@ -28,7 +28,7 @@ ENERGY = 4
 CELL1AREA = 5
 CELL2AREA = 6
 
-AREA_RANGE = 10
+AREA_RANGE = 5
 
 # 地图模型
 
@@ -261,12 +261,12 @@ class Manager(MapMixin):
         self.env = env
         self.cells = []
 
-    def gene_cell(self,CellType,cell_id):
+    def gene_cell(self,CellType,cell_id,area_id):
         x,y = self.select_block()
         if x==None and y==None:
             raise
         self.map.set(x,y,cell_id)
-        self.cells.append(CellType(x,y,cell_id,(self.map.width,self.map.height)))
+        self.cells.append(CellType(x,y,cell_id,area_id,(self.map.width,self.map.height)))
 
     def check_border(self,cell,dx,dy):
         if cell.x+dx>=self.map.width or cell.x+dx<0:
@@ -281,7 +281,7 @@ class Manager(MapMixin):
         for cell in self.cells:
             feelarea = FeelArea(self.map,cell.x,cell.y)
             op,*args = cell.update(feelarea)
-            print(op,args)
+            # print(op,args)
             if op not in self.operators:
                 raise
             if op == "wait":
@@ -291,12 +291,12 @@ class Manager(MapMixin):
                 if direct not in ['up','down','left','right']:
                     raise
                 dx,dy = self.vector[direct]
-                print('============')
+                # print('============')
                 if not self.check_border(cell,dx,dy):
                     continue
                 if not self.can_move(cell.x+dx,cell.y+dy):
                     continue
-                print("----------------")
+                # print("----------------")
                 self.map.set(cell.x,cell.y,BACKGROUND)
                 cell.x += dx
                 cell.y += dy
@@ -312,7 +312,7 @@ class Manager(MapMixin):
                     continue
                 self.map.set(cell.x+dx,cell.y+dy,BACKGROUND)
                 cell.energy += 1
-                print('yyyyyyyyyyyyyyyyyyyy')
+                # print('yyyyyyyyyyyyyyyyyyyy')
             elif op == "put":
                 direct = args[0]
                 if direct not in ['up','down','left','right']:
@@ -324,9 +324,9 @@ class Manager(MapMixin):
                     continue
                 if cell.energy==0:
                     continue
-                self.map.set(cell.x+dx,cell.y+dy,cell.cell_id)
+                self.map.set(cell.x+dx,cell.y+dy,cell.area_id)
                 cell.energy-=1
-                print('nnnnnnnnnnnnnnnnnnnnnnnnnn')
+                # print('nnnnnnnnnnnnnnnnnnnnnnnnnn')
         # self.map.save()
         self.map.render()
 
@@ -339,21 +339,22 @@ class Manager(MapMixin):
 
 
 class BaseCell:
-    def __init__(self,x,y,cell_id,size) -> None:
+    def __init__(self,x,y,cell_id,area_id,size) -> None:
         self.x = x
         self.y = y
         self.feelarea = None
         self.energy = 0
         self.cell_id = cell_id
         self.size = size
+        self.area_id = area_id
 
     def update(self,feelarea):
         return 'wait',None
 
 
 class TestCell(BaseCell):
-    def __init__(self, x, y, cell_id, size) -> None:
-        super().__init__(x, y, cell_id, size)
+    def __init__(self, x, y, cell_id,area_id, size) -> None:
+        super().__init__(x, y, cell_id,area_id, size)
         self.cache = None
     def update(self, feelarea):
         if self.cache:
@@ -401,8 +402,8 @@ class TestCell(BaseCell):
 
 
 class Test2Cell(BaseCell):
-    def __init__(self, x, y, cell_id, size) -> None:
-        super().__init__(x, y, cell_id, size)
+    def __init__(self, x, y, cell_id,area_id, size) -> None:
+        super().__init__(x, y, cell_id,area_id, size)
         self.cache = []
     def update(self, feelarea):
         vector = [
@@ -451,8 +452,76 @@ class Test2Cell(BaseCell):
                 if area[__y][__x] == ENERGY:
                     direct=fpath.pop(0)
                     self.cache = fpath
-                    print("bbbbbbbbbbbbbbbbbbbb",type(fpath))
+                    # print("bbbbbbbbbbbbbbbbbbbb",type(fpath))
                     return 'run',direct
+                _p = fpath.copy()
+                _p.append(d)
+                step.append(((__x,__y),_p))
+                already.append((__x,__y))
+
+
+        direct = random.choice(['up','down','left','right'])
+        return 'run',direct,'last_random'
+
+
+class Test3Cell(BaseCell):
+    def __init__(self, x, y, cell_id,area_id, size) -> None:
+        super().__init__(x, y, cell_id,area_id, size)
+        self.cache = []
+    def update(self, feelarea):
+        if self.energy>0:
+            direct = random.choice(['up','down','left','right'])
+            return 'put',direct
+        vector = [
+            ((1,0),'right'),
+            ((-1,0),'left'),
+            ((0,1),'down'),
+            ((0,-1),'up')
+        ]
+        if self.cache:
+            return 'run',self.cache.pop(0)
+        area = list(feelarea)
+        cx,cy = min(self.x,AREA_RANGE),min(self.y,AREA_RANGE)
+        tx,ty = None,None
+        min_dice = None
+        for ldx,line in enumerate(area):
+            for idx,item in enumerate(line):
+                if item == ENERGY:
+                    _tx,_ty = idx,ldx
+                    dice = (cx-_tx)**2+(cy-_ty)**2
+                    if not min_dice or min_dice>dice:
+                        min_dice = dice
+                        tx,ty = _tx,_ty
+        if not tx and not ty:
+            direct = random.choice(['up','down','left','right'])
+            return 'run',direct,'random'
+        if min_dice == 1:
+            if tx>cx:
+                return 'get','right','min_dice'
+            elif tx<cx:
+                return 'get','left','min_dice'
+            elif ty>cy:
+                return 'get','down','min_dice'
+            elif ty<cy:
+                return 'get','up','min_dice'
+        step = [((cx,cy),[]),]
+        already = [(cx,cy)]
+        while step:
+            first,fpath = step.pop(0)
+            _x,_y = first
+            for v,d in vector:
+                __x,__y = _x+v[0],_y+v[1]
+                if __x<0 or __x>=len(area[0]) or __y<0 or __y>=len(area):
+                    continue
+                if (__x,__y) in already:
+                    continue
+                if area[__y][__x] == ENERGY:
+                    direct=fpath.pop(0)
+                    self.cache = fpath
+                    # print("bbbbbbbbbbbbbbbbbbbb",type(fpath))
+                    return 'run',direct
+                if area[__y][__x] != BACKGROUND:
+                    continue
                 _p = fpath.copy()
                 _p.append(d)
                 step.append(((__x,__y),_p))
@@ -513,10 +582,12 @@ if __name__ == "__main__":
     # manager.gene_cell(BaseCell,CELL2)
     # manager.gene_cell(TestCell,CELL1)
     # manager.gene_cell(TestCell,CELL2)
-    manager.gene_cell(Test2Cell,CELL1)
-    manager.gene_cell(Test2Cell,CELL2)
+    # manager.gene_cell(Test2Cell,CELL1)
+    # manager.gene_cell(Test2Cell,CELL2)
+    manager.gene_cell(Test3Cell,CELL1,CELL1AREA)
+    manager.gene_cell(Test3Cell,CELL2,CELL2AREA)
     
-    for i in range(100):
+    for i in range(10000):
         manager.update()
     
 
