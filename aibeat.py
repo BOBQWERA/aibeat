@@ -28,7 +28,7 @@ ENERGY = 4
 CELL1AREA = 5
 CELL2AREA = 6
 
-AREA_RANGE = 5
+AREA_RANGE = 10
 
 # 地图模型
 
@@ -403,10 +403,16 @@ class TestCell(BaseCell):
 class Test2Cell(BaseCell):
     def __init__(self, x, y, cell_id, size) -> None:
         super().__init__(x, y, cell_id, size)
-        self.cache = None
+        self.cache = []
     def update(self, feelarea):
+        vector = [
+            ((1,0),'right'),
+            ((-1,0),'left'),
+            ((0,1),'down'),
+            ((0,-1),'up')
+        ]
         if self.cache:
-            return self.cache.pop(0)
+            return 'run',self.cache.pop(0)
         area = list(feelarea)
         cx,cy = min(self.x,AREA_RANGE),min(self.y,AREA_RANGE)
         tx,ty = None,None
@@ -422,12 +428,39 @@ class Test2Cell(BaseCell):
         if not tx and not ty:
             direct = random.choice(['up','down','left','right'])
             return 'run',direct,'random'
-        step = [(cx,cy),]
+        if min_dice == 1:
+            if tx>cx:
+                return 'get','right','min_dice'
+            elif tx<cx:
+                return 'get','left','min_dice'
+            elif ty>cy:
+                return 'get','down','min_dice'
+            elif ty<cy:
+                return 'get','up','min_dice'
+        step = [((cx,cy),[]),]
         already = [(cx,cy)]
         while step:
-            last = step[-1]
-            _x,_y = last
-            pass
+            first,fpath = step.pop(0)
+            _x,_y = first
+            for v,d in vector:
+                __x,__y = _x+v[0],_y+v[1]
+                if __x<0 or __x>=len(area[0]) or __y<0 or __y>=len(area):
+                    continue
+                if (__x,__y) in already:
+                    continue
+                if area[__y][__x] == ENERGY:
+                    direct=fpath.pop(0)
+                    self.cache = fpath
+                    print("bbbbbbbbbbbbbbbbbbbb",type(fpath))
+                    return 'run',direct
+                _p = fpath.copy()
+                _p.append(d)
+                step.append(((__x,__y),_p))
+                already.append((__x,__y))
+
+
+        direct = random.choice(['up','down','left','right'])
+        return 'run',direct,'last_random'
 
 
 
@@ -478,10 +511,12 @@ if __name__ == "__main__":
     manager = Manager(m,env)
     # manager.gene_cell(BaseCell,CELL1)
     # manager.gene_cell(BaseCell,CELL2)
-    manager.gene_cell(TestCell,CELL1)
-    manager.gene_cell(TestCell,CELL2)
+    # manager.gene_cell(TestCell,CELL1)
+    # manager.gene_cell(TestCell,CELL2)
+    manager.gene_cell(Test2Cell,CELL1)
+    manager.gene_cell(Test2Cell,CELL2)
     
-    for i in range(1000):
+    for i in range(100):
         manager.update()
     
 
