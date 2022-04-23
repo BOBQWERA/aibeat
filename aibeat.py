@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import random
 import os
-if not os.path.exists('aibeat'):
-    os.mkdir('aibeat')
-os.chdir('./aibeat')
 
 class BadIter:
     def __iter__(self):
@@ -281,7 +278,7 @@ class Manager(MapMixin):
         for cell in self.cells:
             feelarea = FeelArea(self.map,cell.x,cell.y)
             op,*args = cell.update(feelarea)
-            print(op,args)
+            #print(op,args)
             if op not in self.operators:
                 raise
             if op == "wait":
@@ -291,12 +288,12 @@ class Manager(MapMixin):
                 if direct not in ['up','down','left','right']:
                     raise
                 dx,dy = self.vector[direct]
-                print('============')
+                #print('============')
                 if not self.check_border(cell,dx,dy):
                     continue
                 if not self.can_move(cell.x+dx,cell.y+dy):
                     continue
-                print("----------------")
+                #print("----------------")
                 self.map.set(cell.x,cell.y,BACKGROUND)
                 cell.x += dx
                 cell.y += dy
@@ -312,7 +309,7 @@ class Manager(MapMixin):
                     continue
                 self.map.set(cell.x+dx,cell.y+dy,BACKGROUND)
                 cell.energy += 1
-                print('yyyyyyyyyyyyyyyyyyyy')
+                #print('yyyyyyyyyyyyyyyyyyyy')
             elif op == "put":
                 direct = args[0]
                 if direct not in ['up','down','left','right']:
@@ -326,7 +323,7 @@ class Manager(MapMixin):
                     continue
                 self.map.set(cell.x+dx,cell.y+dy,cell.cell_id)
                 cell.energy-=1
-                print('nnnnnnnnnnnnnnnnnnnnnnnnnn')
+                #print('nnnnnnnnnnnnnnnnnnnnnnnnnn')
         # self.map.save()
         self.map.render()
 
@@ -349,6 +346,74 @@ class BaseCell:
 
     def update(self,feelarea):
         return 'wait',None
+
+
+class greedCell(BaseCell):
+    def __init__(self, x, y, cell_id, size) -> None:
+        super().__init__(x, y, cell_id, size)
+        self.bags = 0
+        self.bigdict = 0
+    
+    def getNear(self,feelarea):
+        res = list(feelarea)
+        cx = min(self.x,AREA_RANGE)
+        cy = min(self.y,AREA_RANGE)
+        #left
+        if(cx-1>0):
+            leftElement = res[cy][cx-1]
+        else:
+            leftElement = WALL
+        #up
+        if(cy-1>0):
+            upElement = res[cy-1][cx]
+        else:
+            upElement = WALL
+        #right
+        if(cx+1<len(res)):
+            rightElement = res[cy][cx+1]
+        else:
+            rightElement = WALL
+        #down
+        if(cy+1<len(res[0])):
+            downElement = res[cy+1][cx]
+        else:
+            downElement = WALL
+
+        return (upElement,downElement,leftElement,rightElement)
+
+
+
+    def update(self, feelarea):
+        directs = ['up','down','left','right']
+        obdir = [1,0,3,2]
+        near = self.getNear(feelarea)
+        #print(near)
+        for index,element in enumerate(near):
+            if element == ENERGY:
+                print("存在",index)
+                self.bags += 1
+                return 'get',directs[index]
+        
+        if(near[self.bigdict]==BACKGROUND):
+            if self.bags:
+                #print("存在",self.bags)
+                if near[obdir[self.bigdict]]==BACKGROUND:
+                    self.bags -= 1
+                    return 'put',directs[obdir[self.bigdict]]
+            return 'run',directs[self.bigdict]
+        
+        dir = self.bigdict
+        if dir == 0 or dir == 1:
+            while dir == self.bigdict:
+                dir = random.choice([2,3])
+        else:
+            while dir == self.bigdict:
+                dir = random.choice([0,1])
+        self.bigdict = dir
+        print(dir)
+        return 'run',directs[self.bigdict]
+
+
 
 
 class TestCell(BaseCell):
@@ -478,7 +543,7 @@ if __name__ == "__main__":
     manager = Manager(m,env)
     # manager.gene_cell(BaseCell,CELL1)
     # manager.gene_cell(BaseCell,CELL2)
-    manager.gene_cell(TestCell,CELL1)
+    manager.gene_cell(greedCell,CELL1)
     manager.gene_cell(TestCell,CELL2)
     
     for i in range(1000):
