@@ -33,6 +33,8 @@ class Map:
         self.src = src
         self.gene = BadIter()
 
+        self.mat=[[(0,0,0) for _ in range(self.height) ] for _ in range(self.width) ]
+
     def __iter__(self):
         self.gene = map(lambda x: x, self.map)
         return self
@@ -116,13 +118,13 @@ class Map:
         color1=(1,1,1)
         color2=(247/255,220/255,111/255)
         
-        mat=[[(0,0,0) for _ in range(self.height) ] for _ in range(self.width) ]
+        
         for rdx, row in enumerate(self.map):
             for cdx, cal in enumerate(row):
-                mat[rdx][cdx]= self.info[cal]['color']
+                self.mat[rdx][cdx]= self.info[cal]['color']
         
         plt.clf()  # 清除之前画的图
-        cs=plt.imshow(mat)
+        cs=plt.imshow(self.mat)
         
         #plt.xticks(np.linspace(0,8,8,endpoint=False),('a','b','c','d','e','f','g','h'),fontsize=20)
         #plt.yticks(np.linspace(0,8,8,endpoint=False),('1','2','3','4','5','6','7','8'),fontsize=20)

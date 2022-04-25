@@ -52,10 +52,7 @@ class Manager(MapMixin):
 
         return True
 
-    def try_finish(self):
-        for cell in self.cells:
-            if cell.is_alive:
-                return
+    def get_score(self):
         self.score = [0 for _ in range(len(self.cells))]
         d = {}
         for idx,cell in enumerate(self.cells):
@@ -65,6 +62,12 @@ class Manager(MapMixin):
                 if item in d:
                     self.score[d[item]]+=1
         print(self.score)
+
+    def try_finish(self):
+        for cell in self.cells:
+            if cell.is_alive:
+                return
+        self.get_score()
         exit()
 
     def update(self):
@@ -72,7 +75,7 @@ class Manager(MapMixin):
         for cell in self.cells:
             cell.loss()
             if not cell.is_alive:
-                continue
+                self.try_finish()
             feelarea = FeelArea(self.map, cell.x, cell.y)
             op, *args = cell.update(feelarea)
             if op not in self.operators:
@@ -141,6 +144,14 @@ if __name__ == "__main__":
             "name": "细胞2",
             "color": (255, 118, 117),
         },
+        CELL3: {
+            "name": "细胞3",
+            "color": (254, 202, 87),
+        },
+        CELL4: {
+            "name": "细胞4",
+            "color": (29, 209, 161),
+        },
         ENERGY: {
             "name": "能量",
             "color": (85, 239, 196),
@@ -153,6 +164,14 @@ if __name__ == "__main__":
             "name": "细胞2区域",
             "color": (214, 48, 49),
         },
+        CELL3AREA: {
+            "name": "细胞3区域",
+            "color": (255, 159, 67),
+        },
+        CELL4AREA: {
+            "name": "细胞4区域",
+            "color": (16, 172, 132),
+        },
     })
     m.build_square()
     # m.save()
@@ -162,8 +181,12 @@ if __name__ == "__main__":
     #     print(i)
     env = SingleDevEnv(m, ENERGY)
     manager = Manager(m, env)
-    manager.gene_cell(Test4Cell, CELL2, CELL2AREA)
-    manager.gene_cell(Test4Cell, CELL1, CELL1AREA)
+    manager.gene_cell(Test5Cell, CELL2, CELL2AREA)
+    manager.gene_cell(Test5Cell, CELL1, CELL1AREA)
+    manager.gene_cell(Test5Cell, CELL3, CELL3AREA)
+    manager.gene_cell(Test5Cell, CELL4, CELL4AREA)
 
     for i in range(10000):
+        if i%1000==0:
+            manager.get_score()
         manager.update()
